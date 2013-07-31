@@ -20,24 +20,24 @@ class jenkins::slave (
   $client_jar = "swarm-client-${version}-jar-with-dependencies.jar"
   $client_url = "http://maven.jenkins-ci.org/content/repositories/releases/org/jenkins-ci/plugins/swarm-client/${version}/"
 
-  case $::osfamily {
-    'RedHat': {
-      $java_package = 'java-1.6.0-openjdk'
-    }
-    'Linux': {
-      $java_package = 'java-1.6.0-openjdk'
-    }
-    'Debian': {
-      #needs java package for debian.
+  include jenkins::params
+#  case $::osfamily {
+#    'RedHat': {
+#      $java_package = 'java-1.6.0-openjdk'
+#    }
+#    'Linux': {
+#      $java_package = 'java-1.6.0-openjdk'
+#    }
+#    'Debian': {
+#      #needs java package for debian.
   #    fail( "Unsupported OS family: ${::osfamily}" )
-      $java_package='openjdk-1.6-jdk'
-
-    }
-
-    default: {
-      fail( "Unsupported OS family: ${::osfamily}" )
-    }
-  }
+#      $java_package='openjdk-1.6-jdk'
+#    }
+#
+#    default: {
+#      fail( "Unsupported OS family: ${::osfamily}" )
+#    }
+#  }
 
 
   #add jenkins slave if necessary.
@@ -93,13 +93,37 @@ class jenkins::slave (
     $masterurl_flag = ''
   }
 
-  file { '/etc/init.d/jenkins-slave':
+  if $osfamily = debian {
+    file {'/etc/default/jenkins-slave':
       ensure  => 'file',
       mode    => '0700',
       owner   => 'root',
       group   => 'root',
-      content => template("${module_name}/jenkins-slave.erb"),
+      content => template("${module_name}/${osfamily}/etc/default/jenkins-slave.erb"),
       notify  => Service['jenkins-slave']
+    }
+
+    file { '/etc/init.d/jenkins-slave':
+      ensure  => 'file',
+      mode    => '0700',
+      owner   => 'root',
+      group   => 'root',
+      content => template("${module_name}/jenkins-slave.${osfamily}-init.erb"),
+      notify  => Service['jenkins-slave']
+      require => File['/etc/default/jenkins-slave'],
+    }
+ 
+ 
+  }
+  if $osfamily = (/redhat|linux/) {
+    file { '/etc/init.d/jenkins-slave':
+      ensure  => 'file',
+      mode    => '0700',
+      owner   => 'root',
+      group   => 'root',
+      content => template("${module_name}/jenkins-slave.${osfamily}-init.erb"),
+      notify  => Service['jenkins-slave']
+    }
   }
 
   service { 'jenkins-slave':
